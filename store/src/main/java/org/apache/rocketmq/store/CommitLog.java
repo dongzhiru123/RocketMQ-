@@ -45,6 +45,7 @@ import org.apache.rocketmq.store.ha.HAService;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 
 /**
+ * 添加备注
  * Store all metadata downtime for recovery, data protection reliability
  */
 public class CommitLog {
