@@ -102,6 +102,7 @@ public class Configuration {
             readWriteLock.writeLock().lockInterruptibly();
 
             try {
+                // 将新配置的和所有之前的配置合并起来，同一个属性按照新配置的值来进行赋值。
                 merge(extProperties, this.allConfigs);
             } finally {
                 readWriteLock.writeLock().unlock();

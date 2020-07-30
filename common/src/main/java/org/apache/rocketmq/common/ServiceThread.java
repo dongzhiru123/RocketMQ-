@@ -49,6 +49,20 @@ public abstract class ServiceThread implements Runnable {
         }
         stopped = false;
         this.thread = new Thread(this, getServiceName());
+        /**
+         * 是否守护线程。
+         *
+         * 守护线程是运行在后台的一种特殊进程。
+         * 它独立于控制终端并且周期性地执行某种任务或等待处理某些发生的事件。
+         * 在 Java 中垃圾回收线程就是特殊的守护线程。
+         *
+         * 专门用于服务其他的线程，如果其他的线程（即用户自定义线程）都执行完毕，
+         * 连main线程也执行完毕，那么jvm就会退出（即停止运行），
+         * 此时连jvm都停止运行了，守护线程当然也就停止执行了。
+         *
+         * 换一种通俗的说法，如果有用户自定义线程存在的话，jvm就不会退出，
+         * 此时守护线程也不能退出，也就是它还要运行，为什么呢，就是为了执行垃圾回收的任务。
+         */
         this.thread.setDaemon(isDaemon);
         this.thread.start();
     }

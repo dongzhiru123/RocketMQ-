@@ -54,7 +54,10 @@ public class NamesrvStartup {
     public static NamesrvController main0(String[] args) {
 
         try {
+            //创建NameServer控制器
             NamesrvController controller = createNamesrvController(args);
+
+            // 启动NameServer控制器
             start(controller);
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
             log.info(tip);
@@ -72,6 +75,7 @@ public class NamesrvStartup {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
         //PackageConflictDetect.detectFastjson();
 
+        //构建命令行参数，类似于Linux那样
         Options options = ServerUtil.buildCommandlineOptions(new Options());
         commandLine = ServerUtil.parseCmdLine("mqnamesrv", args, buildCommandlineOptions(options), new PosixParser());
         if (null == commandLine) {
@@ -79,9 +83,27 @@ public class NamesrvStartup {
             return null;
         }
 
+        /**
+         * 创建 NamesrvConfig（NameServer的业务参数）
+         * 创建 NettyServerConfig（NameServer的网络参数）
+         *
+         * 在上面几行代码我们可以看到，构建了命令行参数，意思我们配置的时候可以使用类似Linux的命令
+         * 因此就可以在启动的时候把指定的配置文件或者启动命令中的选项值，填充到 NamesrvConfig、NettyServerConfig中
+         *例如这样 ：
+         *      1） "-c configFile", 通过 -c 命令指定配置文件路径，就可以用自定义配置文件启动 NameServer，-c 这个
+         *      命令参数与 Linux 中启动 NameServer 指定配置文件路径相同。
+         *      2） 或者使用 "--属性名 属性值"， 例如 --listenPort 9876 指定监听端口号。
+         *
+         * 在启动 NameServer 时， 可以先试用 ./mqnamesrv -c configFile -p （mqnamesrv 命令是 Linux 环境下，
+         * 进入 bin 目录下的命令）打印当前加载的配置属性。
+         */
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
+
+        // 设置端口号，将原本的 8888 设置为 9876
         nettyServerConfig.setListenPort(9876);
+
+        // 检查是否带有命令行参数
         if (commandLine.hasOption('c')) {
             String file = commandLine.getOptionValue('c');
             if (file != null) {
@@ -105,18 +127,34 @@ public class NamesrvStartup {
             System.exit(0);
         }
 
+        /**
+         * 该方法通过反射拿到 namesrvConfig 中的方法，
+         * 找到 set 开头的方法，
+         * 然后将有 set 的后面属性名，转为小写，
+         * 从 Properties 中提取，如果有值则调用当前 set 方法 set 对应属性值，
+         * 如果没有则不执行。
+         *
+         * 第一个参数是一个 继承了 HashTable 的属性 K-V 的一个Map。
+         *
+         * commandLine2Properties(commandLine) 方法去判断是否在 Properties 中已经存在属性值，
+         * 不存在则 set 属性值也就是 put 进去，存在则跳过。
+         *
+         * 第二个参数就是上面的 NameServer 服务配置类。
+         */
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
 
+        // 未配置环境变量报错
         if (null == namesrvConfig.getRocketmqHome()) {
             System.out.printf("Please set the %s variable in your environment to match the location of the RocketMQ installation%n", MixAll.ROCKETMQ_HOME_ENV);
             System.exit(-2);
         }
 
+
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(lc);
         lc.reset();
-        configurator.doConfigure(namesrvConfig.getRocketmqHome() + "/conf/logback_namesrv.xml");
+        configurator.doConfigure(namesrvConfig.getRocketmqHome() + "/distribution/conf/logback_namesrv.xml");
 
         log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
@@ -126,6 +164,12 @@ public class NamesrvStartup {
         final NamesrvController controller = new NamesrvController(namesrvConfig, nettyServerConfig);
 
         // remember all configs to prevent discard
+        /**
+         *  为控制器注册配置类。
+         *
+         *  将新配置的和所有之前的配置合并起来，同一个属性按照新配置的值来进行赋值，
+         *  然后一并注册进去。
+         */
         controller.getConfiguration().registerConfig(properties);
 
         return controller;
@@ -136,13 +180,19 @@ public class NamesrvStartup {
         if (null == controller) {
             throw new IllegalArgumentException("NamesrvController is null");
         }
-
+        //控制器初始化。
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();
             System.exit(-3);
         }
 
+        /**
+         * 一个好的实践，钩子函数。（JAVA的钩子函数是在jvm正常退出时会调用）
+         *
+         * 如果代码中使用了线程池，一种优雅的停机方式就是注册一个 JVM 钩子函数，
+         * 在 JVM 进程关闭之前，先将线程池关闭，及时释放资源。
+         */
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {

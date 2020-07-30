@@ -60,6 +60,10 @@ public class KVConfigManager {
 
     public void putKVConfig(final String namespace, final String key, final String value) {
         try {
+            /**
+             * lock方法会忽略中断请求，继续获取锁直到成功；
+             * 而lockInterruptibly则直接抛出中断异常来立即响应中断，由上层调用者处理中断。
+             */
             this.lock.writeLock().lockInterruptibly();
             try {
                 HashMap<String, String> kvTable = this.configTable.get(namespace);

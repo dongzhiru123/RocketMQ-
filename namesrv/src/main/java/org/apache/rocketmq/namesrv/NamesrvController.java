@@ -46,6 +46,7 @@ public class NamesrvController {
 
     private final NettyServerConfig nettyServerConfig;
 
+    // 创建一个可以执行周期任务的线程池。
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "NSScheduledThread"));
     private final KVConfigManager kvConfigManager;
@@ -74,16 +75,46 @@ public class NamesrvController {
     }
 
     public boolean initialize() {
-
+        // 加载 K-V 配置。
         this.kvConfigManager.load();
-
+        // 创建 Netty 网络处理对象。
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
+        // 创建一个固定核心线程个数的线程池，默认是 8 个。
+        // 可创建很多的线程，不使用时直接关闭线程资源。（因为关闭时间为 0，而阻塞队列为 LinkedBlockingQueue）。
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
 
         this.registerProcessor();
 
+        /**
+         * 以下是开启俩个定时任务，心跳检测。
+         * 执行任务的线程池是 newSingleThreadScheduledExecutor 线程池。
+         * 实现是利用 DelegatedScheduledExecutorService，
+         * 代理了一个核心线程数为 1 的 ScheduledThreadPoolExecutor。
+         * 阻塞队列使用的是 延时阻塞队列 DelayBlockingQueue，
+         * 它是一个无界阻塞队列，（实现是一个类似数组，而且利用堆实现了按照 "距离当前时间" 的优先级，
+         * 谁离得最近谁在队列最前面最先被执行）。
+         *
+         * 因此最大线程数量，和线程资源关闭的时间参数无效，因为均无法触发。
+         *
+         * 线程池参数为 ：
+         *      一 、核心线程数量 ： 1
+         *      二、 最大线程数为 ：Integer.MAX_VALUE
+         *      三、 关闭线程资源时间
+         *      四、 时间单位
+         *      五、 工厂
+         *      六、 阻塞队列
+         *      七、 拒绝策略
+         *
+         * 在 RocketMQ 中类似这种定时任务，统称为心跳检测。
+         *
+         * 任务一 ：
+         *      每个 10s 扫描一次 Broker，移除处于不激活状态的 Broker。
+         *
+         * 任务二：
+         *      每个 10min 打印一次 K-V 配置。
+         */
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -100,6 +131,7 @@ public class NamesrvController {
             }
         }, 1, 10, TimeUnit.MINUTES);
 
+        // 监听器.
         if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
             // Register a listener to reload SslContext
             try {
@@ -153,6 +185,7 @@ public class NamesrvController {
     }
 
     public void start() throws Exception {
+        //开启路由服务，主要是 nutty 的一些设置与启动。
         this.remotingServer.start();
 
         if (this.fileWatchService != null) {

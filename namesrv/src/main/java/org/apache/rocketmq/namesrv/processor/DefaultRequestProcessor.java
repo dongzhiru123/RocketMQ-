@@ -58,6 +58,9 @@ import org.apache.rocketmq.remoting.netty.AsyncNettyRequestProcessor;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * 默认网络处理器。
+ */
 public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
     private static InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
@@ -78,7 +81,9 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
                 request);
         }
 
-
+        /**
+         * 解析请求类型。
+         */
         switch (request.getCode()) {
             case RequestCode.PUT_KV_CONFIG:
                 return this.putKVConfig(ctx, request);
@@ -341,8 +346,16 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
         final GetRouteInfoRequestHeader requestHeader =
             (GetRouteInfoRequestHeader) request.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
+        /**
+         * 调用 RouteInfoManger 的方法，从路由表 topicQueueTable、brokerAddrTable、filterServerTable 中，
+         * 分别填充 TopicRouteData 中的 List<QueueData>、List<BrokerData>、filterServerTable。
+         */
         TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(requestHeader.getTopic());
 
+        /**
+         * 找到对应主题的路由并且该主题为顺序消息，
+         * 则从 NameServer KVconfig 中获取关于顺序消息相关的配置填充路由信息。
+         */
         if (topicRouteData != null) {
             if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
                 String orderTopicConf =
@@ -358,6 +371,7 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
             return response;
         }
 
+        // 找不到对应的路由。
         response.setCode(ResponseCode.TOPIC_NOT_EXIST);
         response.setRemark("No topic route info in name server for the topic: " + requestHeader.getTopic()
             + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));

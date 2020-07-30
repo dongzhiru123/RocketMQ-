@@ -111,6 +111,20 @@ public class BrokerOuterAPI {
         this.remotingClient.updateNameServerAddressList(lst);
     }
 
+    /**
+     * 该方法主要是遍历 NameServer 列表，Broker 消息服务器依次向 NameServer 发送心跳包。
+     * @param clusterName
+     * @param brokerAddr
+     * @param brokerName
+     * @param brokerId
+     * @param haServerAddr
+     * @param topicConfigWrapper
+     * @param filterServerList
+     * @param oneway
+     * @param timeoutMills
+     * @param compressed
+     * @return
+     */
     public List<RegisterBrokerResult> registerBrokerAll(
         final String clusterName,
         final String brokerAddr,
@@ -128,18 +142,25 @@ public class BrokerOuterAPI {
         if (nameServerAddressList != null && nameServerAddressList.size() > 0) {
 
             final RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
+            // Broker 地址。
             requestHeader.setBrokerAddr(brokerAddr);
+            // Broker ID， 0 为 master， 大于 0 为 slave。
             requestHeader.setBrokerId(brokerId);
+            // Broker 名称。
             requestHeader.setBrokerName(brokerName);
+            // 集群名称。
             requestHeader.setClusterName(clusterName);
+            // master 地址，初次请求时该值为空，salve 向 NameServer 注册后返回。
             requestHeader.setHaServerAddr(haServerAddr);
+            // 压缩头部 ？
             requestHeader.setCompressed(compressed);
-
+            // 请求体。
             RegisterBrokerBody requestBody = new RegisterBrokerBody();
             requestBody.setTopicConfigSerializeWrapper(topicConfigWrapper);
             requestBody.setFilterServerList(filterServerList);
             final byte[] body = requestBody.encode(compressed);
             final int bodyCrc32 = UtilAll.crc32(body);
+
             requestHeader.setBodyCrc32(bodyCrc32);
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
             for (final String namesrvAddr : nameServerAddressList) {
@@ -147,6 +168,7 @@ public class BrokerOuterAPI {
                     @Override
                     public void run() {
                         try {
+                            // 在其中一个 NameServer 注册 Broker
                             RegisterBrokerResult result = registerBroker(namesrvAddr,oneway, timeoutMills,requestHeader,body);
                             if (result != null) {
                                 registerBrokerResultList.add(result);
@@ -163,6 +185,8 @@ public class BrokerOuterAPI {
             }
 
             try {
+                // 在代码中避免死锁的一种方式。
+                // 代码会停止在这里，等待计数器减到一，才会执行下面的代码。
                 countDownLatch.await(timeoutMills, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
             }
@@ -171,6 +195,21 @@ public class BrokerOuterAPI {
         return registerBrokerResultList;
     }
 
+    /**
+     * 可能抛出的异常分别写，避免使用 Exception。
+     * @param namesrvAddr
+     * @param oneway
+     * @param timeoutMills
+     * @param requestHeader
+     * @param body
+     * @return
+     * @throws RemotingCommandException
+     * @throws MQBrokerException
+     * @throws RemotingConnectException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     * @throws InterruptedException
+     */
     private RegisterBrokerResult registerBroker(
         final String namesrvAddr,
         final boolean oneway,

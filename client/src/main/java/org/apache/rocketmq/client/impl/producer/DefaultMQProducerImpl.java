@@ -180,6 +180,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
 
+                /**
+                 * 主要检查俩个方面 ：
+                 *
+                 * 1.检查生产者组是否设置，创建默认生产者时不设置生产者组会抛出异常。
+                 * 2.如果生产者组名 与 "DEFAULT_PRODUCER" 则也会抛出异常，请设置一个其他名字。
+                 */
                 this.checkConfig();
 
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {

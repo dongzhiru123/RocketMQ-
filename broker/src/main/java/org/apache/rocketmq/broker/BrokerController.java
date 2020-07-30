@@ -892,12 +892,24 @@ public class BrokerController {
             @Override
             public void run() {
                 try {
+                    /**
+                     * 该方法主要是遍历 NameServer 列表， Broker 消息服务器依次向 NameServer 发送心跳包。
+                     *
+                     * 类名.this.方法，是做什么的？
+                     * 如果一个类有内部类的话，在内部类中使用this指的是内部类，
+                     * 而如果想在内部类调用外部的方法，
+                     * 就可以使用到 "类名.this.方法",
+                     * 这样就可以调用到外部的方法。
+                     */
                     BrokerController.this.registerBrokerAll(true, false, brokerConfig.isForceRegister());
                 } catch (Throwable e) {
                     log.error("registerBrokerAll Exception", e);
                 }
             }
-        }, 1000 * 10, Math.max(10000, Math.min(brokerConfig.getRegisterNameServerPeriod(), 60000)), TimeUnit.MILLISECONDS);
+        }, 1000 * 10,
+                Math.max(10000, Math.min(brokerConfig.getRegisterNameServerPeriod(), 60000))
+                /* 不配置的话 30s，该参数设置的方法和目的主要应该是想将心跳发送的时间控制在 10s 到 60s。 **/,
+                TimeUnit.MILLISECONDS);
 
         if (this.brokerStatsManager != null) {
             this.brokerStatsManager.start();
@@ -954,6 +966,7 @@ public class BrokerController {
 
     private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
         TopicConfigSerializeWrapper topicConfigWrapper) {
+        // 调用 BrokerOuterAPI 的 registerBrokerAll 方法。
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(
             this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),
