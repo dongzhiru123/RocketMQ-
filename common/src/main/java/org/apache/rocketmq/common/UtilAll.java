@@ -382,6 +382,7 @@ public class UtilAll {
             return true;
         }
         for (int i = 0; i < strLen; i++) {
+            // 判断是否为 空白字符，空白字符包含，空格、tab键、换行符。
             if (!Character.isWhitespace(str.charAt(i))) {
                 return false;
             }

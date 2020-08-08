@@ -32,7 +32,7 @@ public class TopicRouteData extends RemotingSerializable {
     private List<QueueData> queueDatas;
     // topic 分布的 broker 元数据。
     private List<BrokerData> brokerDatas;
-
+    // broker 上过滤服务器地址列表。
     private HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
     public TopicRouteData cloneTopicRouteData() {

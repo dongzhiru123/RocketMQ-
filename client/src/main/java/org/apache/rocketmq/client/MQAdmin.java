@@ -39,10 +39,10 @@ public interface MQAdmin {
     /**
      * Creates an topic
      *
-     * @param key accesskey
-     * @param newTopic topic name
-     * @param queueNum topic's queue number
-     * @param topicSysFlag topic system flag
+     * @param key accesskey     使用到的 key，目前未实际使用，可以与 newTopic 相同。
+     * @param newTopic topic name       主题名称。
+     * @param queueNum topic's queue number     队列数量。
+     * @param topicSysFlag topic system flag    主题系统标签，默认为 0。
      */
     void createTopic(String key, String newTopic, int queueNum, int topicSysFlag)
         throws MQClientException;
@@ -54,6 +54,8 @@ public interface MQAdmin {
      * @param mq Instance of MessageQueue
      * @param timestamp from when in milliseconds.
      * @return offset
+     *
+     * 根据时间戳从队列中查找其偏移量。
      */
     long searchOffset(final MessageQueue mq, final long timestamp) throws MQClientException;
 
@@ -62,6 +64,8 @@ public interface MQAdmin {
      *
      * @param mq Instance of MessageQueue
      * @return the max offset
+     *
+     * 查找该消息队列中最大的物理偏移量。
      */
     long maxOffset(final MessageQueue mq) throws MQClientException;
 
@@ -70,6 +74,8 @@ public interface MQAdmin {
      *
      * @param mq Instance of MessageQueue
      * @return the minimum offset
+     *
+     * 查找该消息队列中最小的物理偏移量。
      */
     long minOffset(final MessageQueue mq) throws MQClientException;
 
@@ -86,6 +92,8 @@ public interface MQAdmin {
      *
      * @param offsetMsgId message id
      * @return message
+     *
+     * 根据消息 offsetMsgId 查找消息。
      */
     MessageExt viewMessage(final String offsetMsgId) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException;
@@ -95,16 +103,20 @@ public interface MQAdmin {
      *
      * @param topic message topic
      * @param key message key index word
-     * @param maxNum max message number
-     * @param begin from when
-     * @param end to when
+     * @param maxNum max message number     本次最多取出消息条数。
+     * @param begin from when       开始时间。
+     * @param end to when       结束时间。
      * @return Instance of QueryResult
+     *
+     * 根据条件查询消息。
      */
     QueryResult queryMessage(final String topic, final String key, final int maxNum, final long begin,
         final long end) throws MQClientException, InterruptedException;
 
     /**
      * @return The {@code MessageExt} of given msgId
+     *
+     * 根据主题和 id 查询消息。
      */
     MessageExt viewMessage(String topic,
         String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException;

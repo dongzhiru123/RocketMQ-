@@ -33,47 +33,61 @@ public interface MQProducer extends MQAdmin {
 
     List<MessageQueue> fetchPublishMessageQueues(final String topic) throws MQClientException;
 
+    // 同步发送消息，具体发送到主题中的哪个消息队列由负载算法决定。
     SendResult send(final Message msg) throws MQClientException, RemotingException, MQBrokerException,
         InterruptedException;
 
+    // 同步发送消息，如果发送超过 timeout 则抛出超时异常。
     SendResult send(final Message msg, final long timeout) throws MQClientException,
         RemotingException, MQBrokerException, InterruptedException;
 
+    // 异步发送消息， SendCallback 里面包含消息发送成功后的回调方法与抛出异常的回调方法。
     void send(final Message msg, final SendCallback sendCallback) throws MQClientException,
         RemotingException, InterruptedException;
 
+    // 带有超时的异步发送消息方法。
     void send(final Message msg, final SendCallback sendCallback, final long timeout)
         throws MQClientException, RemotingException, InterruptedException;
 
+    // 不管发送对错的发送消息方法。
     void sendOneway(final Message msg) throws MQClientException, RemotingException,
         InterruptedException;
 
+    // 同步方式发送消息，发送到指定消息队列。
     SendResult send(final Message msg, final MessageQueue mq) throws MQClientException,
         RemotingException, MQBrokerException, InterruptedException;
 
+    // 同步方式发送消息，发送到指定消息队列，带有超时机制的。
     SendResult send(final Message msg, final MessageQueue mq, final long timeout)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException;
 
+    // 异步方式发送消息，发送到指定消息队列。
     void send(final Message msg, final MessageQueue mq, final SendCallback sendCallback)
         throws MQClientException, RemotingException, InterruptedException;
 
+    // 异步方式发送消息，发送到指定消息队列，带有超时机制的。
     void send(final Message msg, final MessageQueue mq, final SendCallback sendCallback, long timeout)
         throws MQClientException, RemotingException, InterruptedException;
 
+    // 无论消息发送对错，发送到指定消息队列中。
     void sendOneway(final Message msg, final MessageQueue mq) throws MQClientException,
         RemotingException, InterruptedException;
 
+    // 同步消息发送，指定消息选择算法，覆盖默认的消息队列负载机制。
     SendResult send(final Message msg, final MessageQueueSelector selector, final Object arg)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException;
 
+    // 同步消息发送，指定消息选择算法，覆盖默认的消息队列负载机制，带有超时机制。
     SendResult send(final Message msg, final MessageQueueSelector selector, final Object arg,
         final long timeout) throws MQClientException, RemotingException, MQBrokerException,
         InterruptedException;
 
+    // 异步消息发送，指定消息选择算法，覆盖默认的消息队列负载机制。
     void send(final Message msg, final MessageQueueSelector selector, final Object arg,
         final SendCallback sendCallback) throws MQClientException, RemotingException,
         InterruptedException;
 
+    // 异步消息发送，指定消息选择算法，覆盖默认的消息队列负载机制，带有超时机制。
     void send(final Message msg, final MessageQueueSelector selector, final Object arg,
         final SendCallback sendCallback, final long timeout) throws MQClientException, RemotingException,
         InterruptedException;
@@ -88,6 +102,7 @@ public interface MQProducer extends MQAdmin {
         final Object arg) throws MQClientException;
 
     //for batch
+    // 批量消息发送。
     SendResult send(final Collection<Message> msgs) throws MQClientException, RemotingException, MQBrokerException,
         InterruptedException;
 

@@ -162,6 +162,7 @@ public class MQClientInstance {
     public static TopicPublishInfo topicRouteData2TopicPublishInfo(final String topic, final TopicRouteData route) {
         TopicPublishInfo info = new TopicPublishInfo();
         info.setTopicRouteData(route);
+        // 顺序主题。
         if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
             String[] brokers = route.getOrderTopicConf().split(";");
             for (String broker : brokers) {
@@ -175,6 +176,16 @@ public class MQClientInstance {
 
             info.setOrderTopic(true);
         } else {
+            /**
+             * 循环遍历路由信息的 QueueData 信息，如果队列没有写权限，
+             * 则继续遍历下一个 QueueData；
+             * 根据 brokerName 找到 brokerData 信息，
+             * 找不到或没有找打 Master 节点，则遍历下一个 QueueData；
+             * 根据写队列个数，根据 topic + 序号创建 MessageQueue，
+             * 填充 topicPublishInfo 的 List<MessageQueue>。
+             *
+             * 完成消息发送的路由查找。
+             */
             List<QueueData> qds = route.getQueueDatas();
             Collections.sort(qds);
             for (QueueData qd : qds) {
@@ -604,6 +615,17 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * isDefault 为 true，则使用默认主题去查询，
+     * 如果查询到路由信息，则替换路由信息中读写队列个数为消息生产者默认的队列个数；
+     * 如果 isDefault 为 false,则使用参数 topic 去查询；
+     * 如果未查询到路由信息，则返回 false，表示路由信息为发生变化。
+     *
+     * @param topic
+     * @param isDefault  是否为默认 topic。
+     * @param defaultMQProducer
+     * @return
+     */
     public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
         DefaultMQProducer defaultMQProducer) {
         try {
@@ -625,6 +647,11 @@ public class MQClientInstance {
                     }
                     if (topicRouteData != null) {
                         TopicRouteData old = this.topicRouteTable.get(topic);
+
+                        /**
+                         * 如果路由信息找到，与本地缓存中的路由信息进行对比，
+                         * 判断路由信息是否发生了改变，如果发生变化，则直接返回 false。
+                         */
                         boolean changed = topicRouteDataIsChange(old, topicRouteData);
                         if (!changed) {
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
@@ -640,6 +667,14 @@ public class MQClientInstance {
                             }
 
                             // Update Pub info
+                            /**
+                             * 根据 topicRouteData 中的 List<QueueData> queueDatas
+                             * 转换成 topicPublishInfo 的 List<MessageQueue> messageQueueList 列表。
+                             *
+                             * 具体可见 topicRouteData2TopicPublishInfo 方法。
+                             *
+                             * 然后会更新该 MQClientInstance 所管辖的所有消息发送关于 topic 的信息。
+                             */
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);

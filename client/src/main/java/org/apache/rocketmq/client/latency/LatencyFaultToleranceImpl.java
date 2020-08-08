@@ -24,11 +24,25 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.rocketmq.client.common.ThreadLocalIndex;
 
+// 故障延迟机制实现。
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
     private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
 
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
+
+    /**
+     * 根据 broker 名称从缓存表中获取 FaultItem，
+     * 如果找到则更新 FaultItem，否则创建 FaultItem。
+     *
+     *      1） currentLatency，startTimeStamp 被 volatile 修饰。
+     *      因此一旦被修改立马就可以感知到。
+     *      2） notAvailableDuration 表示该 broker 不可用的持续时间。
+     *
+     * @param name  brokerName
+     * @param currentLatency  消息发送故障延迟时间。
+     * @param notAvailableDuration  不可用持续时长，在这个时间内，broker 将被规避。
+     */
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
         FaultItem old = this.faultItemTable.get(name);
@@ -96,9 +110,14 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             '}';
     }
 
+    // 故障的 broker 条目。
     class FaultItem implements Comparable<FaultItem> {
+
+        // broker 名字。
         private final String name;
+        // 本次消息发送延迟。
         private volatile long currentLatency;
+        // 故障规避开始时间。
         private volatile long startTimestamp;
 
         public FaultItem(final String name) {
@@ -130,6 +149,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             return 0;
         }
 
+        // 用当前的时间，减去当时设置的可以重新恢复的标记时间。
         public boolean isAvailable() {
             return (System.currentTimeMillis() - startTimestamp) >= 0;
         }

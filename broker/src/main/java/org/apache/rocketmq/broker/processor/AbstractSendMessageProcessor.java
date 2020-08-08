@@ -163,6 +163,23 @@ public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProc
         return response;
     }
 
+    /**
+     *  1)检查该 broker 是否有写权限
+     *  2）检查该 topic 是否可以进行消息发送
+     *  3）在 NameServer 端存储主题的配置信息
+     *  4）检查队列
+     *
+     *  如果重试次数超过了允许重试的最大次数，则进入到 DLQ 死信队列。
+     *
+     *  最后调用 DefaultMessageStore#putMessage 进行消息存储。
+     *
+     *  异步消息性能显著提高，但为了保护消息服务器的负载压力，
+     *  RocketMQ 对消息发送的异步消息进行了并发控制，通过参数 clientAsyncSemaphoreValue 来控制。（默认是 65535）
+     * @param ctx
+     * @param requestHeader
+     * @param response
+     * @return
+     */
     protected RemotingCommand msgCheck(final ChannelHandlerContext ctx,
         final SendMessageRequestHeader requestHeader, final RemotingCommand response) {
         if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())

@@ -22,13 +22,22 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Message 类实现了 序列化接口，可在网络中传输，支持序列化和反序列化。
+ */
 public class Message implements Serializable {
     private static final long serialVersionUID = 8445773977080406428L;
 
+    // 主题。
     private String topic;
+    // 消息 flag （RocketMQ 不做处理)。
+    // 具体 org.apache.rocketmq.common.sysflag 下的 MessageSysFlag.
     private int flag;
+    // 存放扩展属性。
     private Map<String, String> properties;
+    // 消息体。
     private byte[] body;
+
     private String transactionId;
 
     public Message() {
@@ -38,6 +47,18 @@ public class Message implements Serializable {
         this(topic, "", "", 0, body, true);
     }
 
+    /**
+     * 全属性构造函数。
+     * @param topic 主题。
+     * @param tags 用于消息过滤。
+     * @param keys Message 索引键，多个用空格隔开，RocketMQ 可以根据这些 key 快速检索到消息。
+     * @param flag 消息 flag （RocketMQ 不做处理)。
+     * @param body 消息体。
+     * @param waitStoreMsgOK 消息发送时是否等消息存储完成后再返回。
+     *
+     * 一些在扩展属性中的值 ：
+     *       1. delayTimeLevel ： 消息延迟级别，用于定时消息或消息重试。当前不支持自定义延迟时间。
+     */
     public Message(String topic, String tags, String keys, int flag, byte[] body, boolean waitStoreMsgOK) {
         this.topic = topic;
         this.flag = flag;

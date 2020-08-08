@@ -58,8 +58,13 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Wrapping internal implementations for virtually all methods presented in this class.
+     *
+     * 包装这个类中几乎所有方法的内部实现。
+     *
+     * transient 关键字，不想序列化的内容。
      */
     protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
+
     private final InternalLogger log = ClientLogger.getLog();
     /**
      * Producer group conceptually aggregates all producer instances of exactly same role, which is particularly
@@ -68,11 +73,15 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * For non-transactional messages, it does not matter as long as it's unique per process. </p>
      *
      * See {@linktourl http://rocketmq.apache.org/docs/core-concept/} for more discussion.
+     *
+     * 生产者所属组，消息服务器在回查事务状态时会随机选择该组中任何一个生产者发起事务回查请求。
      */
     private String producerGroup;
 
     /**
      * Just for testing or demo program
+     *
+     * 默认 topic key。
      */
     private String createTopicKey = MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
@@ -88,6 +97,8 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
+     *
+     * 超过多少大小会开启压缩，默认是 4K。
      */
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
@@ -95,6 +106,8 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Maximum number of retry to perform internally before claiming sending failure in synchronous mode. </p>
      *
      * This may potentially cause message duplication which is up to application developers to resolve.
+     *
+     * 同步方式发送消息重试次数，默认为 2，总共执行 3 次。
      */
     private int retryTimesWhenSendFailed = 2;
 
@@ -102,11 +115,15 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Maximum number of retry to perform internally before claiming sending failure in asynchronous mode. </p>
      *
      * This may potentially cause message duplication which is up to application developers to resolve.
+     *
+     * 异步方式发送消息重试次数，默认为 2，总共执行 3 次。
      */
     private int retryTimesWhenSendAsyncFailed = 2;
 
     /**
      * Indicate whether to retry another broker on sending failure internally.
+     *
+     * 消息重试时选择另外一个 Broker 时，是否不等待存储结果就返回，默认为 false。
      */
     private boolean retryAnotherBrokerWhenNotStoreOK = false;
 
@@ -114,6 +131,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Maximum allowed message size in bytes.
      *
      * 并不是固定的，是根据消息的格式来判断它的长度。
+     * 最大消息长度，默认为 4M。
+     *
+     * 最大值为 2 的 32 次方 减一。
      */
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
@@ -759,10 +779,10 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Create a topic on broker. This method will be removed in a certain version after April 5, 2020, so please do not
      * use this method.
      *
-     * @param key accesskey
-     * @param newTopic topic name
-     * @param queueNum topic's queue number
-     * @param topicSysFlag topic system flag
+     * @param key accesskey  目前没有实际作用，可以与 newTopic 相同。
+     * @param newTopic topic name  主题名称。
+     * @param queueNum topic's queue number  队列数量。
+     * @param topicSysFlag topic system flag  主题系统标签，默认为 0。
      * @throws MQClientException if there is any client error.
      */
     @Deprecated
@@ -920,7 +940,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Sets an Executor to be used for executing callback methods. If the Executor is not set, {@link
-     * NettyRemotingClient#publicExecutor} will be used.
+     * -NettyRemotingClient#publicExecutor} will be used.
      *
      * @param callbackExecutor the instance of Executor
      */
@@ -930,7 +950,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Sets an Executor to be used for executing asynchronous send. If the Executor is not set, {@link
-     * DefaultMQProducerImpl#defaultAsyncSenderExecutor} will be used.
+     * DefaultMQProducerImpl#-defaultAsyncSenderExecutor} will be used.
      *
      * @param asyncSenderExecutor the instance of Executor
      */

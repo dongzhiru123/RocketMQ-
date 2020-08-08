@@ -17,7 +17,10 @@
 package org.apache.rocketmq.client.producer;
 
 public interface SendCallback {
+
+    // 消息发送成功的回调方法。
     void onSuccess(final SendResult sendResult);
 
+    // 消息异常的回调方法。
     void onException(final Throwable e);
 }
