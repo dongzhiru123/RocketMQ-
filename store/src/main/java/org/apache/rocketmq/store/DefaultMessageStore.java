@@ -69,18 +69,23 @@ public class DefaultMessageStore implements MessageStore {
     // CommitLog
     private final CommitLog commitLog;
 
+    // 消息队列存储缓存表，按消息主题分组。
     private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable;
 
+    // 消息队列文件 ConsumeQueue 刷盘线程。
     private final FlushConsumeQueueService flushConsumeQueueService;
 
     private final CleanCommitLogService cleanCommitLogService;
 
     private final CleanConsumeQueueService cleanConsumeQueueService;
 
+    // 索引文件实现类。
     private final IndexService indexService;
 
+    // MappedFile 分配服务。
     private final AllocateMappedFileService allocateMappedFileService;
 
+    // CommitLog 消息分发，根据 CommitLog 文件构建 ConsumeQueue、IndexFile 文件。
     private final ReputMessageService reputMessageService;
 
     private final HAService haService;
@@ -89,6 +94,7 @@ public class DefaultMessageStore implements MessageStore {
 
     private final StoreStatsService storeStatsService;
 
+    // 消息堆内存缓存。
     private final TransientStorePool transientStorePool;
 
     private final RunningFlags runningFlags = new RunningFlags();
@@ -97,15 +103,19 @@ public class DefaultMessageStore implements MessageStore {
     private final ScheduledExecutorService scheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread"));
     private final BrokerStatsManager brokerStatsManager;
+
+    // 消息拉取长轮询模式消息达到监听器。
     private final MessageArrivingListener messageArrivingListener;
     private final BrokerConfig brokerConfig;
 
     private volatile boolean shutdown = true;
 
+    // 文件刷盘检测点。
     private StoreCheckpoint storeCheckpoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
 
+    // CommitLog 文件转发请求。
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
     private RandomAccessFile lockFile;
@@ -471,11 +481,22 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
+
+        /**
+         * 检查存储的状态
+         * 如果当前 Broker 停止工作，或者 Broker 为 SALVE 角色或当前 Rocket 不支持写入，
+         * 则拒绝写入。
+         */
         PutMessageStatus checkStoreStatus = this.checkStoreStatus();
         if (checkStoreStatus != PutMessageStatus.PUT_OK) {
             return new PutMessageResult(checkStoreStatus, null);
         }
 
+        /**
+         * 检查消息是否合法
+         * 比如说 消息主题长度有没有超过 127个字节，
+         * 或者消息属性长度超过 32767个字符将拒绝该消息写入。
+         */
         PutMessageStatus msgCheckStatus = this.checkMessage(msg);
         if (msgCheckStatus == PutMessageStatus.MESSAGE_ILLEGAL) {
             return new PutMessageResult(msgCheckStatus, null);

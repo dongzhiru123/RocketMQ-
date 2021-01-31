@@ -180,6 +180,7 @@ public class NamesrvStartup {
         if (null == controller) {
             throw new IllegalArgumentException("NamesrvController is null");
         }
+
         //控制器初始化。
         boolean initResult = controller.initialize();
         if (!initResult) {

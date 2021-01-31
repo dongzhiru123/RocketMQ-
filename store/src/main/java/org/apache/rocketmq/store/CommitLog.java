@@ -794,6 +794,11 @@ public class CommitLog {
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
             || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
             // Delay Delivery
+
+            /**
+             * 如果消息的延迟级别大于 0，将消息的原主题名称与原消息队列 ID 存储消息属性中，
+             * 用延迟消息主题 SCHEDULE_TOPIC、消息队列 ID 更新原先消息的主题与队列。
+             */
             if (msg.getDelayTimeLevel() > 0) {
                 if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
@@ -824,9 +829,23 @@ public class CommitLog {
 
         long elapsedTimeInLock = 0;
 
+        /**
+         * 拿到当前写入的 CommitLog 文件。
+         * MappedFileQueue 可以看作是 commitlog 文件夹，
+         * 而 MappedFile 可以看作是文件夹下的一个文件。
+         *
+         * 这个 MappedFile 是从 线程安全的CopyOnWriteList中get（size - 1）拿到的。
+         * 应当是防止多线程同时出现添加新的 MappedFile 文件从而导致出现错误或者失败。
+         */
+
         MappedFile unlockMappedFile = null;
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
 
+
+        /**
+         * 自旋锁或者ReentractLock锁，
+         * 根据配置在 RocketMQ 内部有具体实现。
+         */
         putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
         try {
             long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
@@ -836,9 +855,17 @@ public class CommitLog {
             // global
             msg.setStoreTimestamp(beginLockTimestamp);
 
+            /**
+             * 如果 mappedFile 为 null 或者 mappedFile 已经 full，
+             * 则会去创建新的 mappedFile 来存储 message。
+             *
+             * mappedFile 文件的文件名称使用的是偏移量作为文件的名称的。
+             */
             if (null == mappedFile || mappedFile.isFull()) {
                 mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
             }
+
+            // 这里空则表示创建失败了，因为在上面的时候如果 get 不到的话就会创建一个新的文件，如果这里仍然为空一定是上面创建失败。
             if (null == mappedFile) {
                 log.error("create mapped file1 error, topic: " + msg.getTopic() + " clientAddr: " + msg.getBornHostString());
                 beginTimeInLock = 0;
@@ -893,6 +920,14 @@ public class CommitLog {
         storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).incrementAndGet();
         storeStatsService.getSinglePutMessageTopicSizeTotal(topic).addAndGet(result.getWroteBytes());
 
+        /**
+         * 目前只能将消息追加在内存中，
+         * 持久化还需要进行刷盘。
+         *
+         * 至于采用什么刷盘方式，可以配置同步或者异步刷盘。
+         *
+         * 还有就是主从同步复制。
+         */
         handleDiskFlush(result, putMessageResult, msg);
         handleHA(result, putMessageResult, msg);
 
@@ -1535,6 +1570,11 @@ public class CommitLog {
             ByteBuffer storeHostHolder = ByteBuffer.allocate(storeHostLength);
 
             this.resetByteBuffer(storeHostHolder, storeHostLength);
+
+            /**
+             * 创建全局唯一消息 ID，消息ID 有16个字节，消息ID组成为 ：
+             * 4 字节 IP + 4 字节 端口号 + 8 字节 消息偏移量。
+             */
             String msgId;
             if ((sysflag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0) {
                 msgId = MessageDecoder.createMessageId(this.msgIdMemory, msgInner.getStoreHostBytes(storeHostHolder), wroteOffset);
@@ -1543,6 +1583,11 @@ public class CommitLog {
             }
 
             // Record ConsumeQueue information
+
+            /**
+             * 获取该消息在消息队列的偏移量。
+             * CommitLog 中保存了当前所有消息队列的当前待写入偏移量。
+             */
             keyBuilder.setLength(0);
             keyBuilder.append(msgInner.getTopic());
             keyBuilder.append('-');
@@ -1587,9 +1632,17 @@ public class CommitLog {
 
             final int bodyLength = msgInner.getBody() == null ? 0 : msgInner.getBody().length;
 
+            /**
+             * 根据消息体的长度、主题的长度、属性的长度结合消息存储格式计算消息的总长度。
+             */
             final int msgLen = calMsgLength(msgInner.getSysFlag(), bodyLength, topicLength, propertiesLength);
 
             // Exceeds the maximum message
+
+            /**
+             * 长度大于 CommitLog 的最大空闲空间，则返回 MESSAGE_SIZE_EXCEEDED，
+             * Broker 会重新创建一个新的 CommitLog 文件来存储该消息。
+             */
             if (msgLen > this.maxMessageSize) {
                 CommitLog.log.warn("message size exceeded, msg total size: " + msgLen + ", msg body size: " + bodyLength
                     + ", maxMessageSize: " + this.maxMessageSize);
